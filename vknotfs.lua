@@ -1,7 +1,38 @@
 script_name("VK Logs")
 script_authors("delphi")
-script_version("1")
 script_version_number(4)
+
+script_version('1')
+
+function update()
+    local raw = 'https://raw.githubusercontent.com/Horomov/scripts/master/update.json'
+    local dlstatus = require('moonloader').download_status
+    local requests = require('requests')
+    local f = {}
+    function f:getLastVersion()
+        local response = requests.get(raw)
+        if response.status_code == 200 then
+            return decodeJson(response.text)['last']
+        else
+            return 'UNKNOWN'
+        end
+    end
+    function f:download()
+        local response = requests.get(raw)
+        if response.status_code == 200 then
+            downloadUrlToFile(decodeJson(response.text)['url'], thisScript().path, function (id, status, p1, p2)
+                print('РЎРєР°С‡РёРІР°СЋ '..decodeJson(response.text)['url']..' РІ '..thisScript().path)
+                if status == dlstatus.STATUSEX_ENDDOWNLOAD then
+                    sampAddChatMessage('РЎРєСЂРёРїС‚ РѕР±РЅРѕРІР»РµРЅ, РїРµСЂРµР·Р°РіСЂСѓР·РєР°...', -1)
+                    thisScript():reload()
+                end
+            end)
+        else
+            sampAddChatMessage('РћС€РёР±РєР°, РЅРµРІРѕР·РјРѕР¶РЅРѕ СѓСЃС‚Р°РЅРѕРІРёС‚СЊ РѕР±РЅРѕРІР»РµРЅРёРµ, РєРѕРґ: '..response.status_code, -1)
+        end
+    end
+    return f
+end
 
 --deps
 local effil = require 'effil'
@@ -106,7 +137,7 @@ local function load_font()
 	imgui.GetIO().Fonts:Clear()
 	local builder = imgui.ImFontAtlasGlyphRangesBuilder()
 	builder:AddRanges(imgui.GetIO().Fonts:GetGlyphRangesCyrillic())
-	builder:AddText(u8'‚„…†‡€‰‹‘’“”•–—™›№')
+	builder:AddText(u8'вЂљвЂћвЂ¦вЂ вЂЎв‚¬вЂ°вЂ№вЂвЂ™вЂњвЂќвЂўвЂ“вЂ”в„ўвЂєв„–')
 	glyph_ranges = builder:BuildRanges()
 	imgui.GetIO().Fonts:AddFontFromFileTTF(font_path, 14.0*1.3, nil, glyph_ranges)
 	imgui.RebuildFonts()
@@ -117,7 +148,7 @@ load_font()
 --vk longpoll api globals
 local key, server, ts
 
-function threadHandle(runner, url, args, resolve, reject) -- обработка effil потока без блокировок
+function threadHandle(runner, url, args, resolve, reject) -- РѕР±СЂР°Р±РѕС‚РєР° effil РїРѕС‚РѕРєР° Р±РµР· Р±Р»РѕРєРёСЂРѕРІРѕРє
 	local t = runner(url, args)
 	local r = t:get(0)
 	while not r do
@@ -136,7 +167,7 @@ function threadHandle(runner, url, args, resolve, reject) -- обработка effil пот
 	t:cancel(0)
 end
 
-function requestRunner() -- создание effil потока с функцией https запроса
+function requestRunner() -- СЃРѕР·РґР°РЅРёРµ effil РїРѕС‚РѕРєР° СЃ С„СѓРЅРєС†РёРµР№ https Р·Р°РїСЂРѕСЃР°
 	return effil.thread(function(u, a)
 		local https = require 'ssl.https'
 		local ok, result = pcall(https.request, u, a)
@@ -156,7 +187,7 @@ function async_http_request(url, args, resolve, reject)
 	end)
 end
 
-local vkerr, vkerrsend -- сообщение с текстом ошибки, nil если все ок
+local vkerr, vkerrsend -- СЃРѕРѕР±С‰РµРЅРёРµ СЃ С‚РµРєСЃС‚РѕРј РѕС€РёР±РєРё, nil РµСЃР»Рё РІСЃРµ РѕРє
 
 
 if not doesDirectoryExist('moonloader/config') then
@@ -203,12 +234,12 @@ function longpollGetKey()
 	async_http_request('https://api.vk.com/method/groups.getLongPollServer?group_id=' .. ini.main.group .. '&access_token=' .. ini.main.token .. '&v=5.81', '', function (result)
 		if result then
 			if not result:sub(1,1) == '{' then
-				vkerr = 'Ошибка!\nПричина: Нет соединения с VK!'
+				vkerr = 'РћС€РёР±РєР°!\nРџСЂРёС‡РёРЅР°: РќРµС‚ СЃРѕРµРґРёРЅРµРЅРёСЏ СЃ VK!'
 				return
 			end
 			local t = decodeJson(result)
 			if t.error then
-				vkerr = 'Ошибка!\nКод: ' .. t.error.error_code .. ' Причина: ' .. t.error.error_msg
+				vkerr = 'РћС€РёР±РєР°!\nРљРѕРґ: ' .. t.error.error_code .. ' РџСЂРёС‡РёРЅР°: ' .. t.error.error_msg
 				print(vkerr)
 				return
 			end
@@ -223,7 +254,7 @@ end
 function vk_request(msg)
 	local _, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
 	msg = msg:gsub('{......}', '')
-	msg = '[Игрок ' .. sampGetPlayerNickname(myid) .. ']: \n' .. msg
+	msg = '[РРіСЂРѕРє ' .. sampGetPlayerNickname(myid) .. ']: \n' .. msg
 	msg = u8(msg)
 	msg = url_encode(msg)
 	if sendBuf.v and ini.main.id ~= '' then
@@ -235,7 +266,7 @@ function vk_request(msg)
 				return
 			end
 			if t.error then
-				vkerrsend = 'Ошибка!\nКод: ' .. t.error.error_code .. ' Причина: ' .. t.error.error_msg
+				vkerrsend = 'РћС€РёР±РєР°!\nРљРѕРґ: ' .. t.error.error_code .. ' РџСЂРёС‡РёРЅР°: ' .. t.error.error_msg
 				return
 			end
 			vkerrsend = nil
@@ -250,8 +281,15 @@ function main()
 	while not isSampAvailable() do wait(100) end
 	_, myID = sampGetPlayerIdByCharHandle(PLAYER_PED) 
 	userNick = sampGetPlayerNickname(myID)
+	local lastver = update():getLastVersion()
+	if thisScript().version ~= lastver then
+        sampRegisterChatCommand('scriptupd', function()
+            update():download()
+        end)
+        sampAddChatMessage('Р’С‹С€Р»Рѕ РѕР±РЅРѕРІР»РµРЅРёРµ СЃРєСЂРёРїС‚Р° ('..thisScript().version..' -> '..lastver..'), РІРІРµРґРёС‚Рµ /scriptupd РґР»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ!', -1)
+    end
 	sampRegisterChatCommand('vk', vk)
-	sampAddChatMessage("[vklogs]:{FFFFFF} Скрипт успешно загружен. ", 0xffa500)
+	sampAddChatMessage("[vklogs]:{FFFFFF} РЎРєСЂРёРїС‚ СѓСЃРїРµС€РЅРѕ Р·Р°РіСЂСѓР¶РµРЅ. ", 0xffa500)
 
 	longpollGetKey()
 	while not key do wait(1) end
@@ -322,7 +360,7 @@ local filters = {}
 
 local inputsTable = {}
 
-local stateCombo = u8'Неактивен\0Отправлять\0Игнорировать\0\0'
+local stateCombo = u8'РќРµР°РєС‚РёРІРµРЅ\0РћС‚РїСЂР°РІР»СЏС‚СЊ\0РРіРЅРѕСЂРёСЂРѕРІР°С‚СЊ\0\0'
 
 function initializeInputs()
 	inputsTable = {}
@@ -355,19 +393,19 @@ end
 function mainWindow()
 	
 	if vkerrsend then
-		imgui.Text(u8'Состояние отправки: ' .. u8(vkerrsend))
+		imgui.Text(u8'РЎРѕСЃС‚РѕСЏРЅРёРµ РѕС‚РїСЂР°РІРєРё: ' .. u8(vkerrsend))
 	else
-		imgui.Text(u8'Состояние отправки: Активно!')
+		imgui.Text(u8'РЎРѕСЃС‚РѕСЏРЅРёРµ РѕС‚РїСЂР°РІРєРё: РђРєС‚РёРІРЅРѕ!')
 	end
-	imgui.Checkbox(u8'Отправлять уведомления в VK', sendBuf)
-	if sendBuf.v and imgui.Button(u8'Отправить тест сообщение', imgui.ImVec2(250*global_scale.v, 20*global_scale.v)) then
-		vk_request('Проверка скрипта')
+	imgui.Checkbox(u8'РћС‚РїСЂР°РІР»СЏС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ РІ VK', sendBuf)
+	if sendBuf.v and imgui.Button(u8'РћС‚РїСЂР°РІРёС‚СЊ С‚РµСЃС‚ СЃРѕРѕР±С‰РµРЅРёРµ', imgui.ImVec2(250*global_scale.v, 20*global_scale.v)) then
+		vk_request('РџСЂРѕРІРµСЂРєР° СЃРєСЂРёРїС‚Р°')
 	end
 	imgui.PushItemWidth(200)
 	imgui.InputText('Chatid ID', idBuf)
-	imgui.Hint('ID Беседы. Не изменяй, если не знаешь что это')
+	imgui.Hint('ID Р‘РµСЃРµРґС‹. РќРµ РёР·РјРµРЅСЏР№, РµСЃР»Рё РЅРµ Р·РЅР°РµС€СЊ С‡С‚Рѕ СЌС‚Рѕ')
 	imgui.InputText('Group ID', groupBuf)
-	imgui.Hint('Можно посмотреть в управлении сообществом. Не изменяй, если не знаешь что это')
+	imgui.Hint('РњРѕР¶РЅРѕ РїРѕСЃРјРѕС‚СЂРµС‚СЊ РІ СѓРїСЂР°РІР»РµРЅРёРё СЃРѕРѕР±С‰РµСЃС‚РІРѕРј. РќРµ РёР·РјРµРЅСЏР№, РµСЃР»Рё РЅРµ Р·РЅР°РµС€СЊ С‡С‚Рѕ СЌС‚Рѕ')
 	imgui.PopItemWidth(200)
 	imgui.SetCursorPosX(75*global_scale.v)
 	if imgui.Button('Save', imgui.ImVec2(50*global_scale.v, 20*global_scale.v)) then
@@ -411,9 +449,9 @@ function sampev.onServerMessage(col, msg)
 	--		end
 	--	end
 	--end
-	if useGiverank and msg:match('Вы назначили .+%s.+') then
-		nick1, rank = msg:match('Вы назначили (.+)%s(.+)')	
-		text = userNick..' повысил/понизил '..nick1..' до '..rank
+	if useGiverank and msg:match('Р’С‹ РЅР°Р·РЅР°С‡РёР»Рё .+%s.+') then
+		nick1, rank = msg:match('Р’С‹ РЅР°Р·РЅР°С‡РёР»Рё (.+)%s(.+)')	
+		text = userNick..' РїРѕРІС‹СЃРёР»/РїРѕРЅРёР·РёР» '..nick1..' РґРѕ '..rank
 		useGiverank = false
 		--vk_request(text)
 		confirmSend = true
@@ -421,9 +459,9 @@ function sampev.onServerMessage(col, msg)
 
 		sampAddChatMessage(text,-1)
 	end
-	if useUnInvite and msg:match('Вы выгнали .+ из организации. Причина: .+') then
-		nick1, reason = msg:match('Вы выгнали (.+) из организации. Причина: (.+)')	
-		text = userNick..' уволил '..nick1..'. Причина: '..reason
+	if useUnInvite and msg:match('Р’С‹ РІС‹РіРЅР°Р»Рё .+ РёР· РѕСЂРіР°РЅРёР·Р°С†РёРё. РџСЂРёС‡РёРЅР°: .+') then
+		nick1, reason = msg:match('Р’С‹ РІС‹РіРЅР°Р»Рё (.+) РёР· РѕСЂРіР°РЅРёР·Р°С†РёРё. РџСЂРёС‡РёРЅР°: (.+)')	
+		text = userNick..' СѓРІРѕР»РёР» '..nick1..'. РџСЂРёС‡РёРЅР°: '..reason
 		useUnInvite = false
 		confirmSend = true
 		findUnInvite = true
@@ -431,11 +469,11 @@ function sampev.onServerMessage(col, msg)
 		--vk_request(text)
 		--sampAddChatMessage(text,-1)
 	end
-	if useInvite and msg:find(userNick) and msg:find('полицейский жетон .+') then
-		nick1, nick2 = msg:match('(.+) передал полицейский жетон (.+)')
+	if useInvite and msg:find(userNick) and msg:find('РїРѕР»РёС†РµР№СЃРєРёР№ Р¶РµС‚РѕРЅ .+') then
+		nick1, nick2 = msg:match('(.+) РїРµСЂРµРґР°Р» РїРѕР»РёС†РµР№СЃРєРёР№ Р¶РµС‚РѕРЅ (.+)')
 		sampAddChatMessage(nick1, -1)
 		if userNick == nick1 then
-			text = userNick..' принял '..nick2
+			text = userNick..' РїСЂРёРЅСЏР» '..nick2
 			useInvite = false
 			findInvite = true
 			confirmSend = true
